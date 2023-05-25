@@ -7,13 +7,14 @@ param keyVaultName string
 param appInsightName string
 param laWorkspaceResourceId string
 
+
 resource asaInstance 'Microsoft.AppPlatform/Spring@2022-12-01' = {
   name: asaInstanceName
   location: location
   tags: tags
   sku: {
-    name: 'B0'
-    tier: 'Basic'
+    tier: 'Enterprise'
+    name: 'E0'
   }
 }
 
@@ -22,7 +23,7 @@ resource asaApp 'Microsoft.AppPlatform/Spring/apps@2022-12-01' = {
   location: location
   parent: asaInstance
   identity: {
-	type: 'SystemAssigned'
+  type: 'SystemAssigned'
   }
   properties: {
     public: true
@@ -30,23 +31,23 @@ resource asaApp 'Microsoft.AppPlatform/Spring/apps@2022-12-01' = {
   }
 }
 
+
 resource asaDeployment 'Microsoft.AppPlatform/Spring/apps/deployments@2022-12-01' = {
   name: 'default'
   parent: asaApp
   properties: {
     source: {
-      type: 'Jar'
-      relativePath: relativePath
-      runtimeVersion: 'Java_17'
+      type: 'BuildResult'
+      buildResultId: '<default>'
     }
     deploymentSettings: {
       resourceRequests: {
-        cpu: '1'
-        memory: '2Gi'
+        cpu: '2'
+        memory: '4Gi'
       }
       environmentVariables: {
-	    AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri
-	  }
+      AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri
+    }
     }
   }
 }
@@ -78,6 +79,18 @@ resource springAppsDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01
   }
 }
 
+resource buildAgentpool 'Microsoft.AppPlatform/Spring/buildServices/agentPools@2023-03-01-preview' = {
+  name: '${asaInstance.name}/default/default'
+  properties: {
+    poolSize: {
+      name: 'S2'
+    }
+  }
+  dependsOn: [
+    asaInstance
+  ]
+}
+
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = if (!(empty(appInsightName))) {
   name: appInsightName
 }
@@ -89,3 +102,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = if (!(empty(
 output identityPrincipalId string = asaApp.identity.principalId
 output name string = asaApp.name
 output uri string = 'https://${asaApp.properties.url}'
+
+
+
